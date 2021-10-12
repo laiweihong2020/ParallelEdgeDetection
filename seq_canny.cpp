@@ -2,18 +2,21 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <bits/stdc++>
+#include <cstring>
+#include <sstream>
+#include <cmath>
 
 # define WIDTH  512
 #define HEIGHT  512
+# define KERNEL_SIZE    5
 
 using namespace std;
 
-int **new2d (int width, int height) {
-    int **dp = new int *[width];
+double **new2d (int width, int height) {
+    double **dp = new double *[width];
     size_t size = width;
     size *= height;
-    int *dp0 = new int[size];
+    double *dp0 = new double[size];
     if (!dp || !dp0) {
         std::cerr << "Failed to create 2d array" << std::endl;
         exit(1);
@@ -25,22 +28,167 @@ int **new2d (int width, int height) {
     return dp;
 }
 
-void showMatrix(int **mat, int w, int h) {
-    for(int i = 0; i < w; i++) {
-        for(int j = 0; j < h; j++) {
-            printf("%d", mat[i][j]);
+void showMatrix(double **mat, int w, int h) {
+    for(int j = 0; j < w; j++) {
+        for(int i = 0; i < h; i++) {
+            printf("%f ", mat[i][j]);
         }
+        printf("\n");
         printf("\n");
     }
     printf("\n");
 }
 
+void **gaussianKernelGeneration(double **mat, int sigma, int size) {
+    // Initialise the standard deviation to sigma
+    double r, s = 2.0 * sigma * sigma;
+
+    // sum for normalisation
+    double sum = 0.0;
+    int k = (size - 1)/2;
+
+    // generate the kernel based on predefined size
+    for (int x = -k; x <= k; ++x) {
+        for (int y = -k; y <= k; ++y) {
+            r = sqrt(x * x + y * y);
+            mat[x + 2][y + 2] = (exp(-(r * r) / s)) / (M_PI * s);
+            sum += mat[x + 2][y + 2];
+        }
+    } 
+
+    // normalise the kernel
+    for(int i = 0; i < 5; ++i) {
+        for(int j = 0; j < 5; ++j) {
+            mat[i][j] /= sum;
+        }
+    }
+}
+
+// Currently only works for kernel of size 5x5
+void **gaussianBlur(double **im, double **kernel, double **results) {
+    double **convolutedIm = new2d(KERNEL_SIZE, KERNEL_SIZE);
+    size_t size = KERNEL_SIZE;
+    size *= KERNEL_SIZE;
+    std::memset(convolutedIm[0], 0, size);
+
+    double **result = new2d(KERNEL_SIZE, KERNEL_SIZE);
+    size_t k_size = KERNEL_SIZE;
+    k_size *= KERNEL_SIZE;
+    std::memset(result[0], 0, k_size);
+
+    // Iterate through every pixel in the image
+    for (int x = 0; x < WIDTH; ++x) {
+        for (int y = 0; y < HEIGHT; ++y) {
+            // Crop the pixel region to apply gaussian blur
+            for (int xx = x - 2; xx <= x + 2; ++xx){
+                for(int yy = y - 2; yy <= y+2; ++yy) {
+                    if(xx < 0 || yy < 0 || xx > WIDTH-1 || yy > HEIGHT-1) {
+                        // This is just padding done in real time
+                        convolutedIm[xx + 2 - x][yy + 2 -y] = 0;
+                    } else {
+                        convolutedIm[xx + 2 - x][yy + 2 -y] = im[xx][yy];
+                    }
+                }
+            }
+
+            // Here we should have a local 5x5 region of our picture
+            // Now we apply matrix multiplication onto the cropped image
+            for(int i = 0; i < KERNEL_SIZE; ++i) {
+                for(int j = 0; j < KERNEL_SIZE; ++j) {
+                    result[i][j] += convolutedIm[i][j] * kernel[i][j];
+                }
+            }
+
+            // Add up all the values and set that as the new intensity
+            for(int i = 0; i < KERNEL_SIZE; ++i) {
+                for(int j = 0; j < KERNEL_SIZE; ++j) {
+                    results[x][y] += result[i][j];
+                    result[i][j] = 0;
+                }
+            }
+            // // results should start to be populated at this point
+        }
+    }
+
+    // Free resources after calculation is completed
+    delete[] result;
+    delete[] convolutedIm;
+}
+
+void gradientCalculation(double **im, double **G, double **theta) {
+    int Kx[3][3] = {
+        {-1, 0, 1},
+        {-2, 0, 2},
+        {-1, 0, 1}
+    };
+
+    int Ky[3][3] = {
+        {1, 2, 1},
+        {0, 0, 0},
+        {-1, -2, -1}
+    };
+
+    double **convolutedIm = new2d(3, 3);
+    size_t size = 3;
+    size *= 3;
+    std::memset(convolutedIm[0], 0, size);
+
+    // Convolve the filter onto the image
+    // Iterate through every pixel in the image
+    for (int x = 0; x < WIDTH; ++x) {
+        for (int y = 0; y < HEIGHT; ++y) {
+            int i_x = 0;
+            int i_y = 0;
+            // Crop the pixel region to apply gaussian blur
+            for (int xx = x - 1; xx <= x + 1; ++xx){
+                for(int yy = y - 1; yy <= y+1; ++yy) {
+                    if(xx < 0 || yy < 0 || xx > WIDTH-1 || yy > HEIGHT-1) {
+                        // This is just padding done in real time
+                        convolutedIm[xx + 1 - x][yy + 1 -y] = 0;
+                    } else {
+                        convolutedIm[xx + 1 - x][yy + 1 -y] = im[xx][yy];
+                    }
+                }
+            }
+
+            // Here we should have the convolved im
+            // Now we apply matrix multiplication onto the cropped image
+            for(int i = 0; i < 3; ++i) {
+                for(int j = 0; j < 3; ++j) {
+                    i_x += convolutedIm[i][j] * Kx[i][j];
+                    i_y += convolutedIm[i][j] * Ky[i][j];
+                }
+            }
+
+            // Compute the G value and theta value
+            G[x][y] = sqrt(i_x * i_x + i_y * i_y);
+            theta[x][y] = atan2 (i_y , i_x);
+        }
+    }
+}
+
+void writeToFile(string filePath, double **mat) {
+    ofstream outfile(filePath);
+    
+    for(int j = 0; j < HEIGHT; ++j) {
+        string s = "";
+        for(int i = 0; i < WIDTH; ++i) {
+            double val = mat[i][j];
+            string valInt = to_string((int)round(val));
+
+            s += valInt;
+            s += " ";
+        }
+        outfile << s << "\n";
+    }
+}
+
 int main(int argc, char **argv) {
     // Create the 2d matrix at which the image is stored
-    int **imageMat = new2d(WIDTH, HEIGHT);
+    double **imageMat = new2d(WIDTH, HEIGHT);
     size_t size = WIDTH;
     size *= HEIGHT;
-    memset(imageMat[0], 0, size);
+    std::memset(imageMat[0], 0, size);
 
     ifstream infile("image_matrices/lena512.txt");
     string line;
@@ -58,9 +206,46 @@ int main(int argc, char **argv) {
             imageMat[i][j] = token;
             i++;
         }
+        i = 0;
         j++;
     }
 
-    showMatrix(imageMat, WIDTH, HEIGHT);
+    // We should have an image matrix here.
+    // Apply noise reduction using the a Gaussian kernel
+    // Create the Gaussian kernel
+    double **gaussianKernel = new2d(KERNEL_SIZE, KERNEL_SIZE);
+    size_t k_size = KERNEL_SIZE;
+    k_size *= KERNEL_SIZE;
+    std::memset(gaussianKernel[0], 0, k_size);
+
+    // Generate the Gaussian kernel
+    gaussianKernelGeneration(gaussianKernel, 1, KERNEL_SIZE);
+
+    // Apply the convolution operation (may be worth parallelising)
+    double **blurredImageMat = new2d(WIDTH, HEIGHT);
+    size_t bl_size = WIDTH;
+    bl_size *= HEIGHT;
+    std::memset(blurredImageMat[0], 0, bl_size);
+
+    gaussianBlur(imageMat, gaussianKernel, blurredImageMat);
+
+    // End of area worth parallelising
+    delete[] imageMat;
+    delete[] gaussianKernel;
+
+    // Gradient Calculation
+    // Create the 2d matrix at which the image is stored
+    double **G = new2d(WIDTH, HEIGHT);
+    std::memset(G[0], 0, size);
+
+    // Create the 2d matrix at which the image is stored
+    double **theta = new2d(WIDTH, HEIGHT);
+    std::memset(theta[0], 0, size);
+
+    gradientCalculation(blurredImageMat, G, theta);
+
+    delete[] blurredImageMat;
+    // End of gradient calculation
+
     infile.close();
 }
