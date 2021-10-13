@@ -167,6 +167,73 @@ void gradientCalculation(double **im, double **G, double **theta) {
     }
 }
 
+// Make sure to keep track of the maximum value here
+int nonMaxSuppression(double **G, double **theta, double **result) {
+    double max = 0;
+    for(int x = 0; x < WIDTH; ++x) {
+        for(int y = 0; y < HEIGHT; ++y) {
+            // Get the angle for that location
+            double angle = theta[x][y] * 180 / M_PI;
+
+            if(angle < 0) {
+                angle += 180;
+            }
+
+            int q[2] = {};
+            int r[2] = {};
+
+            // Handle cases for angles
+            if((0 <= angle < 22.5) || 157.5 <= angle <= 180) {
+                q[0] = x;
+                q[1] = y+1;
+                r[0] = x;
+                r[1] = y-1;
+            } else if(22.5 <= angle < 67.5) {
+                q[0] = x+1;
+                q[1] = y-1;
+                r[0] = x-1;
+                r[1] = y+1;
+            } else if(67.5 <= angle < 112.5) {
+                q[0] = x+1;
+                q[1] = y;
+                r[0] = x-1;
+                r[1] = y;
+            } else if(112.5 <= angle < 157.5) {
+                q[0] = x-1;
+                q[1] = y-1;
+                r[0] = x+1;
+                r[1] = y+1;
+            }
+
+            // get the pixel values
+            double q_val = 255;
+            double r_val = 255;
+            
+            // Check index bounds and make appropriate actions
+            if(q[0] < 0 || q[1] < 0 || r[0] < 0 || r[1] < 0 
+                || q[0] > WIDTH-1 || r[0] > WIDTH-1 || q[1] > HEIGHT-1 || r[1] > HEIGHT-1) {
+                    // The pixel is at the edge and cannot be performed non max suppression
+                    continue;
+                } else {
+                    // q and r values within bounds
+                    q_val = G[q[0]][q[1]];
+                    r_val = G[r[0]][r[1]];
+                }
+
+            // Check if the pixel intensity is greater
+            if(G[x][y] > q_val && G[x][y] > r_val) {
+                if(max < G[x][y]) {
+                    max = G[x][y];
+                }
+                result[x][y] = G[x][y];
+            } else {
+                result[x][y] = 0;
+            }
+        }
+    }
+    return max;
+}
+
 void writeToFile(string filePath, double **mat) {
     ofstream outfile(filePath);
     
@@ -246,6 +313,25 @@ int main(int argc, char **argv) {
 
     delete[] blurredImageMat;
     // End of gradient calculation
+
+    // Non-Maximum Suppression
+    double **nonMaxSuppress = new2d(WIDTH, HEIGHT);
+    std::memset(nonMaxSuppress[0], 0, size);
+    double max = 0;
+
+    max = nonMaxSuppression(G, theta, nonMaxSuppress);
+
+    delete[] G;
+    delete[] theta;
+    // End of non-maximum suppression
+
+    // Double thresholding
+
+    // End of double thresholding
+
+    // Edge tracking by hysteresis
+
+    // End of edge tracking by hysteresis
 
     infile.close();
 }
