@@ -6,9 +6,11 @@
 #include <sstream>
 #include <cmath>
 
-# define WIDTH  512
-#define HEIGHT  512
+# define WIDTH          5000
+# define HEIGHT         5000
 # define KERNEL_SIZE    5
+# define HIGH_THRESHOLD 0.2
+# define LOW_THRESHOLD  0.05
 
 using namespace std;
 
@@ -76,17 +78,19 @@ void **gaussianBlur(double **im, double **kernel, double **results) {
     k_size *= KERNEL_SIZE;
     std::memset(result[0], 0, k_size);
 
+    int k = (KERNEL_SIZE - 1)/2;
+
     // Iterate through every pixel in the image
     for (int x = 0; x < WIDTH; ++x) {
         for (int y = 0; y < HEIGHT; ++y) {
             // Crop the pixel region to apply gaussian blur
-            for (int xx = x - 2; xx <= x + 2; ++xx){
-                for(int yy = y - 2; yy <= y+2; ++yy) {
+            for (int xx = x - k; xx <= x + k; ++xx){
+                for(int yy = y - k; yy <= y+k; ++yy) {
                     if(xx < 0 || yy < 0 || xx > WIDTH-1 || yy > HEIGHT-1) {
                         // This is just padding done in real time
-                        convolutedIm[xx + 2 - x][yy + 2 -y] = 0;
+                        convolutedIm[xx + k - x][yy + k -y] = 0;
                     } else {
-                        convolutedIm[xx + 2 - x][yy + 2 -y] = im[xx][yy];
+                        convolutedIm[xx + k - x][yy + k -y] = im[xx][yy];
                     }
                 }
             }
@@ -234,6 +238,52 @@ int nonMaxSuppression(double **G, double **theta, double **result) {
     return max;
 }
 
+void doubleThresholding(double **im, int max) {
+    if (max > 255) {
+        max = 255;
+    }
+
+    double highThreshold = max * HIGH_THRESHOLD;
+    double lowThreshold = highThreshold * LOW_THRESHOLD;
+
+    for(int x = 0; x < WIDTH; ++x) {
+        for(int y = 0; y < HEIGHT; ++y) {
+            if(im[x][y] > highThreshold) {
+                im[x][y] = 255;
+            } else if(im[x][y] > lowThreshold) {
+                im[x][y] = 25;
+            } else {
+                im[x][y] = 0;
+            }
+        }
+    }
+}
+
+// Edge tracking
+// Communication between parallel components
+void hysteresis(double **im) {
+    for(int x = 0; x < WIDTH; ++x) {
+        for(int y = 0; y < HEIGHT; ++y) {
+            // See if the weak component is connected to a strong component
+            if(im[x][y] == 25) {
+                // Don't process edges for now
+                if(x == 0 || y == 0 || x == WIDTH-1 || x == HEIGHT-1) {
+                    continue;
+                }
+
+                // Check surrounding blocks to see if there are any strong points
+                if(im[x+1][y] == 255 || im[x+1][y+1] == 255 || im[x][y+1] == 255 || im[x-1][y+1] == 255
+                    || im[x-1][y] == 255 || im[x-1][y-1] == 255 || im[x][y-1] == 255 || im[x+1][y-1] == 255) {
+                        im[x][y] = 255;
+                    }
+                else {
+                    im[x][y] = 0;
+                }
+            }
+        }
+    }
+}
+
 void writeToFile(string filePath, double **mat) {
     ofstream outfile(filePath);
     
@@ -257,7 +307,7 @@ int main(int argc, char **argv) {
     size *= HEIGHT;
     std::memset(imageMat[0], 0, size);
 
-    ifstream infile("image_matrices/lena512.txt");
+    ifstream infile("image_matrices/lena.txt");
     string line;
 
     int i = 0;
@@ -313,7 +363,6 @@ int main(int argc, char **argv) {
 
     delete[] blurredImageMat;
     // End of gradient calculation
-
     // Non-Maximum Suppression
     double **nonMaxSuppress = new2d(WIDTH, HEIGHT);
     std::memset(nonMaxSuppress[0], 0, size);
@@ -323,14 +372,16 @@ int main(int argc, char **argv) {
 
     delete[] G;
     delete[] theta;
+
     // End of non-maximum suppression
 
     // Double thresholding
-
+    doubleThresholding(nonMaxSuppress, max);
     // End of double thresholding
 
     // Edge tracking by hysteresis
-
+    hysteresis(nonMaxSuppress);
+    writeToFile("image_matrices/final.txt", nonMaxSuppress);
     // End of edge tracking by hysteresis
 
     infile.close();
