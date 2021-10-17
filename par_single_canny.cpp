@@ -74,7 +74,7 @@ void gaussianKernelGeneration(double **mat, int sigma, int size) {
 }
 
 // Currently only works for kernel of size 5x5
-void **gaussianBlur(double **im, double **kernel, double **results, int width, int height) {
+void gaussianBlur(double **im, double **kernel, double **results, int width, int height) {
     double **convolutedIm = new2d(KERNEL_SIZE, KERNEL_SIZE);
     size_t size = KERNEL_SIZE;
     size *= KERNEL_SIZE;
@@ -295,7 +295,7 @@ void sendEdgePixelValue(double **im, int dest, int width, int height, int type) 
 
     int qSize = q.size();
     MPI_Ssend(&qSize, 1, MPI_INT, dest, 1, MPI_COMM_WORLD);
-    MPI_Ssend(arr, qSize, MPI_INT, dest, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Ssend(arr, qSize, MPI_INT, dest, 2, MPI_COMM_WORLD);
 }
 
 void receiveAndProcessEdgePixelValue(double **im, int width, int height, int source, int type) {
@@ -499,6 +499,9 @@ void processImage(int rank, int width, int height) {
     // Edge tracking by hysteresis
     hysteresis(nonMaxSuppress, width, height, rank);
     // End of edge tracking by hysteresis
+
+    filePath = "image_matrices/results/" + to_string(rank);
+    writeToFile(filePath, nonMaxSuppress, width, height);
 
     infile.close();
 }

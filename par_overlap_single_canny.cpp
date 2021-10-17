@@ -349,13 +349,15 @@ void hysteresis(double **im, int width, int height, int rank) {
         // Allocate the memory 
         // Process and free the memory
         int leftMostSize = 0;
-        MPI_Recv(&leftMostSize, 1, MPI_INT, 1, 1, MPI_COMM_WORLD);
+        MPI_Recv(&leftMostSize, 1, MPI_INT, 1, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         // Allocate memory for the message
         int *leftMost = new int[leftMostSize];
-        MPI_Recv(leftMost, leftMostSize, MPI_INT, 1, 2, MPI_COMM_WORLD);
+        MPI_Recv(leftMost, leftMostSize, MPI_INT, 1, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         // Process the array
+        // Get the right most
+
         // Repeat for rank 2
     } else if(rank == 1) {
         // Wait for rank 3
@@ -514,7 +516,7 @@ int main(int argc, char **argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    processImage(rank, dx, dy, rank);
+    processImage(rank, dx, dy);
 
     MPI_Finalize();
 }
