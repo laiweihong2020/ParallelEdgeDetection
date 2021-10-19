@@ -379,7 +379,7 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
     delete[] G;
     delete[] theta;
 
-    doubleThresholding(nonMaxSuppress, max, width, height+1);
+    // doubleThresholding(nonMaxSuppress, max, width, height+1);
 
     hysteresis(nonMaxSuppress, width, height);
 
