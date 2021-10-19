@@ -11,9 +11,9 @@
 #include <unordered_map>
 #include <stdio.h>
 
-#define HIGH_THRESHOLD 0.2
+#define HIGH_THRESHOLD 0.8
 #define LOW_THRESHOLD 0.05
-#define KERNEL_SIZE    50
+#define KERNEL_SIZE    5
 
 using namespace std;
 
