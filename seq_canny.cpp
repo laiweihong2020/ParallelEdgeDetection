@@ -41,7 +41,7 @@ void showMatrix(double **mat, int w, int h) {
     printf("\n");
 }
 
-void **gaussianKernelGeneration(double **mat, int sigma, int size) {
+void gaussianKernelGeneration(double **mat, int sigma, int size) {
     // Initialise the standard deviation to sigma
     double r, s = 2.0 * sigma * sigma;
 
@@ -67,7 +67,7 @@ void **gaussianKernelGeneration(double **mat, int sigma, int size) {
 }
 
 // Currently only works for kernel of size 5x5
-void **gaussianBlur(double **im, double **kernel, double **results) {
+void gaussianBlur(double **im, double **kernel, double **results) {
     double **convolutedIm = new2d(KERNEL_SIZE, KERNEL_SIZE);
     size_t size = KERNEL_SIZE;
     size *= KERNEL_SIZE;
