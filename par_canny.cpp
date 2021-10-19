@@ -9,6 +9,7 @@
 #include <omp.h>
 #include <vector>
 #include <unordered_map>
+#include <stdio.h>
 
 #define HIGH_THRESHOLD 0.2
 #define LOW_THRESHOLD 0.05
@@ -16,6 +17,9 @@
 
 using namespace std;
 
+/**
+* Utility function to create 2d arrays
+*/
 double **new2d (int width, int height) {
     double **dp = new double *[width];
     size_t size = width;
@@ -565,7 +569,7 @@ int main(int argc, char **argv) {
 
                     // Check the front of the pRank processor
                     pRank = bigWorkingQueue.front();
-                    cout << "pRank: " << pRank << endl;
+
                     bigWorkingQueue.pop();
                     bigWorkSize -= 1;
 
@@ -582,7 +586,7 @@ int main(int argc, char **argv) {
                     if(iLoc != string::npos) {
                         rankFileNameStr.erase(iLoc, rankFileNameStr.length());
                     }
-                    cout << rankFileNameStr << endl;
+
                     // Now we should have the raw filename
                     // Update the map with the number of counts and extract the existing count to generate the filename
                     // First, check if we have an entry for the filename
@@ -605,7 +609,45 @@ int main(int argc, char **argv) {
                 }
 
                 // Once all the files have been processed, we iterate through the map and start combining the subimages
-                // TODO
+                // Create a matrix with the big dimensions
+                double **imageMat = new2d(5000, 5000);
+                size_t size = 5000;
+                size *= 5000;
+                std::memset(imageMat[0], 0, size);
+
+                for(unordered_map<string, int>::iterator iter = bigWorkMap.begin(); iter != bigWorkMap.end(); ++iter) {
+                    string fileNameStr = iter->first;
+                    for(int x = 0; x < 4; ++x) {
+                        // Read the sub result
+                        string filePath = "image_matrices/results/big/" + fileNameStr + "_temp" + to_string(x) + ".txt";
+                        ifstream infile(filePath);
+                        string line;
+
+                        int i = 0;
+                        int j = x*1250;
+
+                        while(getline(infile, line)) {
+                            // Split the string based on spaces and fill the matrix
+                            stringstream ss(line);
+                            int token;
+                            while(ss >> token) {
+                                imageMat[i][j] = token;
+                                i++;
+                            }
+                            i = 0;
+                            j++;
+                        }
+
+                        if(remove(filePath.c_str()) != 0) {
+                            perror("Error deleting file");
+                        }
+                    }
+                    // Once the image matrix is loaded, write it to a final file and delete the temp files
+                    string filePath = "image_matrices/results/" + fileNameStr + ".txt";
+                    writeToFile(filePath, imageMat, 5000, 5000);
+                }
+
+                delete[] imageMat;
             }
         }
         // When we reach here, all the images should be processed and combined
