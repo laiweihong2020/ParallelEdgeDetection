@@ -13,7 +13,7 @@
 
 #define HIGH_THRESHOLD 0.2
 #define LOW_THRESHOLD 0.05
-#define KERNEL_SIZE    11
+#define KERNEL_SIZE    50
 
 using namespace std;
 
