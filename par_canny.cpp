@@ -13,7 +13,7 @@
 
 #define HIGH_THRESHOLD 0.2
 #define LOW_THRESHOLD 0.05
-#define KERNEL_SIZE    5
+#define KERNEL_SIZE    11
 
 using namespace std;
 
@@ -64,14 +64,14 @@ void gaussianKernelGeneration(double **mat, int sigma, int size) {
     for (int x = -k; x <= k; ++x) {
         for (int y = -k; y <= k; ++y) {
             r = sqrt(x * x + y * y);
-            mat[x + 2][y + 2] = (exp(-(r * r) / s)) / (M_PI * s);
-            sum += mat[x + 2][y + 2];
+            mat[x + k][y + k] = (exp(-(r * r) / s)) / (M_PI * s);
+            sum += mat[x + k][y + k];
         }
     } 
 
     // normalise the kernel
-    for(int i = 0; i < 5; ++i) {
-        for(int j = 0; j < 5; ++j) {
+    for(int i = 0; i < size; ++i) {
+        for(int j = 0; j < size; ++j) {
             mat[i][j] /= sum;
         }
     }
@@ -379,7 +379,7 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
     delete[] G;
     delete[] theta;
 
-    // doubleThresholding(nonMaxSuppress, max, width, height+1);
+    doubleThresholding(nonMaxSuppress, max, width, height+1);
 
     hysteresis(nonMaxSuppress, width, height);
 
