@@ -11,9 +11,9 @@
 #include <unordered_map>
 #include <stdio.h>
 
-#define HIGH_THRESHOLD 0.8
+#define HIGH_THRESHOLD 0.2
 #define LOW_THRESHOLD 0.05
-#define KERNEL_SIZE    5
+#define KERNEL_SIZE    3
 
 using namespace std;
 
@@ -197,22 +197,22 @@ int nonMaxSuppression(double **G, double **theta, double **result, int width, in
             int r[2] = {};
 
             // Handle cases for angles
-            if((0 <= angle < 22.5) || 157.5 <= angle <= 180) {
+            if((angle >= 0 && angle < 22.5) || (angle >= 157.5 && angle <= 180)){
                 q[0] = x;
                 q[1] = y+1;
                 r[0] = x;
                 r[1] = y-1;
-            } else if(22.5 <= angle < 67.5) {
+            } else if((angle >= 22.5 && angle < 67.5)){
                 q[0] = x+1;
                 q[1] = y-1;
                 r[0] = x-1;
                 r[1] = y+1;
-            } else if(67.5 <= angle < 112.5) {
+            } else if(angle >= 67.5 && angle < 112.5){
                 q[0] = x+1;
                 q[1] = y;
                 r[0] = x-1;
                 r[1] = y;
-            } else if(112.5 <= angle < 157.5) {
+            } else if(angle >= 112.5 && angle > 157.5){
                 q[0] = x-1;
                 q[1] = y-1;
                 r[0] = x+1;
@@ -302,7 +302,7 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
     std::memset(imageMat[0], 0, size);
 
     // Read the file and load data into the matrix
-    string filePath = "image_matrices/" + fileName;
+    string filePath = "image_matrices/" + fileName + ".txt";
     ifstream infile(filePath);
     string line;
 
@@ -394,13 +394,17 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
         // The root process will resolve the combination process
         char *outFileName = new char[100];
         int statusResponse = 1;
-            cout << "image Processing completed" << endl;
+        cout << "image Processing completed" << endl;
         MPI_Ssend(&statusResponse, 1, MPI_INT, 0, messageTag, MPI_COMM_WORLD);
         MPI_Ssend(fileName.c_str(), 100, MPI_CHAR, 0, messageTag, MPI_COMM_WORLD);
-        MPI_Recv(outFileName, 100, MPI_CHAR, 0, messageTag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        std::string outFileNameStr = std::string(outFileName);
-        cout << outFileNameStr << endl;
-        filePath = "image_matrices/results/" + outFileNameStr;
+
+        int imageOrder = yOffset/1250;
+        string rankFileNameStr = fileName + "_temp" + to_string(imageOrder) + ".txt";
+        cout << rankFileNameStr << endl;
+
+        string outFilePath = "/big/" + rankFileNameStr;
+
+        filePath = "image_matrices/results/" + outFilePath;
         writeToFile(filePath, nonMaxSuppress, width, height);
     }
 }
@@ -575,21 +579,15 @@ int main(int argc, char **argv) {
 
                     int pStatus;
                     char *rankFileName = new char[100];
+
+                    // Get the position of the image using offset
                     MPI_Recv(&pStatus, 1, MPI_INT, pRank, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     MPI_Recv(rankFileName, 100, MPI_CHAR, pRank, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    // We get the filename and create a directory with it, we process the images only when the big working queue is
-                    // First, strip the file extension ends to get the raw fileName
-                    string stringToBeRemoved = ".txt";
-                    string rankFileNameStr = std::string(rankFileName);
-                    string::size_type iLoc = rankFileNameStr.find(stringToBeRemoved);
-
-                    if(iLoc != string::npos) {
-                        rankFileNameStr.erase(iLoc, rankFileNameStr.length());
-                    }
 
                     // Now we should have the raw filename
                     // Update the map with the number of counts and extract the existing count to generate the filename
                     // First, check if we have an entry for the filename
+                    string rankFileNameStr = string(rankFileName);
                     unordered_map<string, int>::const_iterator keyIter = bigWorkMap.find(rankFileNameStr);
                     int fileIndex = 0;
                     // If the key doesn;t exist
@@ -602,10 +600,8 @@ int main(int argc, char **argv) {
                     }
 
                     // Generate the filename
-                    rankFileNameStr = rankFileNameStr + "_temp" + to_string(fileIndex) + ".txt";
-
-                    string outFilePath = "/big/" + rankFileNameStr;
-                    MPI_Ssend(outFilePath.c_str(), 100, MPI_CHAR, pRank, 3, MPI_COMM_WORLD);
+                    // Need to fix this to use offset values
+                    // MPI_Ssend(outFilePath.c_str(), 100, MPI_CHAR, pRank, 3, MPI_COMM_WORLD);
                 }
 
                 // Once all the files have been processed, we iterate through the map and start combining the subimages
