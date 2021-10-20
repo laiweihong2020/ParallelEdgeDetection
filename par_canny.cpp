@@ -351,7 +351,9 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
 
     gaussianBlur(imageMat, gaussianKernel, blurredImageMat, width, height+1);
 
+    delete[] imageMat[0];
     delete[] imageMat;
+    delete[] gaussianKernel[0];
     delete[] gaussianKernel;
 
     // Gradient Calculation
@@ -367,6 +369,7 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
 
     gradientCalculation(blurredImageMat, G, theta, width, height+1);
 
+    delete[] blurredImageMat[0];
     delete[] blurredImageMat;
 
     double **nonMaxSuppress = new2d(width, height + 1);
@@ -375,7 +378,9 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
 
     max = nonMaxSuppression(G, theta, nonMaxSuppress, width, height + 1);
 
+    delete[] G[0];
     delete[] G;
+    delete[] theta[0];
     delete[] theta;
 
     doubleThresholding(nonMaxSuppress, max, width, height+1);
@@ -405,6 +410,7 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
         filePath = "image_matrices/results/" + outFilePath;
         writeToFile(filePath, nonMaxSuppress, width, height);
     }
+    delete[] nonMaxSuppress[0];
     delete[] nonMaxSuppress;
 }
 
@@ -511,7 +517,6 @@ int main(int argc, char **argv) {
                     int pRank = processorQueue.front();
                     processorQueue.pop();
                     workingQueue.push(pRank);
-
                     param[0] = 512;
                     param[1] = 512;
                     param[2] = 0;
@@ -679,6 +684,8 @@ int main(int argc, char **argv) {
             int yOffset = param[2];
             int fileType = param[3]; // 0 for full image, 1 for partial image
             int messageTag = param[4];
+
+            cout << height << endl;
 
             std::string fileNameStr = std::string(fileName);
             processImage(fileNameStr, yOffset, width, height, fileType, messageTag);
