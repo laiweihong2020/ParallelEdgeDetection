@@ -308,7 +308,6 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
 
     int i = 0;
     int j = 0;
-    cout << "yOffset: " << yOffset << endl;
     
     while(getline(infile, line)) {
         // Split the string based on spaces and fill the matrix
@@ -386,7 +385,7 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
     // Save the results by writing into the file
     if(fileType == 0) {
         // This means that the entire image is loaded
-        filePath = "image_matrices/results/" + fileName;
+        filePath = "image_matrices/results/" + fileName + ".txt";
         writeToFile(filePath, nonMaxSuppress, width, height);
     } else if(fileType == 1) {
         // This means that this is a partial image
@@ -394,7 +393,6 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
         // The root process will resolve the combination process
         char *outFileName = new char[100];
         int statusResponse = 1;
-        cout << "image Processing completed" << endl;
         MPI_Ssend(&statusResponse, 1, MPI_INT, 0, messageTag, MPI_COMM_WORLD);
         MPI_Ssend(fileName.c_str(), 100, MPI_CHAR, 0, messageTag, MPI_COMM_WORLD);
 
@@ -407,6 +405,7 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
         filePath = "image_matrices/results/" + outFilePath;
         writeToFile(filePath, nonMaxSuppress, width, height);
     }
+    delete[] nonMaxSuppress;
 }
 
 // We assume that all the processes only have 1GB of memory
@@ -461,7 +460,6 @@ int main(int argc, char **argv) {
         }
 
         int bigWorkSize = bigWorkQueue.size() * 4;
-        cout << processorQueue.size() << endl;
 
         // We should now have a populated list of files to be processed
         // Assumption: the images should be less than 12,000 pixels by 12,000 pixels at its maximum
@@ -479,13 +477,15 @@ int main(int argc, char **argv) {
 
                     for(int i = 0; i < 4; ++i) {
                         while(processorQueue.size() == 0) {
-                            // wait
+                            // All the jobs have been distributed break to the smaller work
+                            if(bigWorkQueue.size() == 0) {
+                                break;
+                            }
                         }
 
                         int pRank = processorQueue.front();
                         processorQueue.pop();
                         workingQueue.push(pRank);
-                        cout << pRank << endl;
                         bigWorkingQueue.push(pRank);
 
                         param[0] = 5000;
@@ -502,7 +502,6 @@ int main(int argc, char **argv) {
 
                 while(smallWorkQueue.size() > 0) {
                     fName = smallWorkQueue.front();
-                    smallWorkQueue.pop();
 
                     // Wait for processors to be available
                     while(processorQueue.size() == 0) {
@@ -518,10 +517,11 @@ int main(int argc, char **argv) {
                     param[2] = 0;
                     param[3] = 0;
                     param[4] = 0;
-
                     MPI_Ssend(&isTerminate, 1, MPI_INT, pRank, 0, MPI_COMM_WORLD);
                     MPI_Ssend(fName.c_str(), 100, MPI_CHAR, pRank, 0, MPI_COMM_WORLD);
                     MPI_Ssend(param, 5, MPI_INT, pRank, 1, MPI_COMM_WORLD);
+
+                    smallWorkQueue.pop();
                 }
             }
 
@@ -548,7 +548,7 @@ int main(int argc, char **argv) {
                             }
                         } else {
                             // More work to be done
-                            cout << "There is more work to do" << pRank << endl;
+                            cout << "There is more work to do " << pRank << endl;
                             int response = 0;
                             processorQueue.push(pRank);
                             MPI_Ssend(&response, 1, MPI_INT, pRank, 2, MPI_COMM_WORLD);
@@ -564,7 +564,6 @@ int main(int argc, char **argv) {
                 // This section is dedicated to combining the images
                 // We can combine more here because we dont need the memory to keep track of multiple matrices
                 int pRank;
-                cout << "reached" << endl;
                 while(bigWorkSize > 0) {
                     // While the queue is empty, wait
                     while(bigWorkingQueue.size() == 0) {
@@ -667,6 +666,7 @@ int main(int argc, char **argv) {
             MPI_Recv(&isTerminate, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             if(isTerminate == 0) {
                 MPI_Recv(fileName, 100, MPI_CHAR, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                cout << rank << " received " << fileName << endl;
                 MPI_Recv(param, 5, MPI_INT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             } else {
                 // Termination called no more jobs available
@@ -693,7 +693,7 @@ int main(int argc, char **argv) {
                 processing = 0;
             }
         }
-        cout << "Processor at " << rank << "ended" << endl;
+        cout << "Processor at " << rank << " ended" << endl;
     }
     MPI_Finalize();
 }
