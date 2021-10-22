@@ -10,6 +10,7 @@
 #include <vector>
 #include <unordered_map>
 #include <stdio.h>
+#include <sys/time.h>
 
 #define HIGH_THRESHOLD 0.2
 #define LOW_THRESHOLD 0.05
@@ -34,6 +35,12 @@ double **new2d (int width, int height) {
         dp[i] = dp[i-1] + height;
     }
     return dp;
+}
+
+uint64_t GetTimeStamp() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
 }
 
 void writeToFile(string filePath, double **mat, int width, int height) {
@@ -403,7 +410,6 @@ void processImage(string fileName, int yOffset, int width, int height, int fileT
 
         int imageOrder = yOffset/1250;
         string rankFileNameStr = fileName + "_temp" + to_string(imageOrder) + ".txt";
-        cout << rankFileNameStr << endl;
 
         string outFilePath = "/big/" + rankFileNameStr;
 
@@ -428,6 +434,7 @@ int main(int argc, char **argv) {
     // Root process in charge of coordinating and distributing work
     // Root will also be in charge of side resolution
     if(rank == 0) {
+        uint64_t start = GetTimeStamp();
         omp_set_num_threads(3);
         int processing = 1;
         int bigWorkProcessing = 1;
@@ -496,7 +503,7 @@ int main(int argc, char **argv) {
 
                         param[0] = 5000;
                         param[1] = 1250;
-                        param[2] = i*1250;
+                        param[2] = 1250 * i;
                         param[3] = 1;
                         param[4] = 3;
                         MPI_Ssend(&isTerminate, 1, MPI_INT, pRank, 0, MPI_COMM_WORLD);
@@ -553,7 +560,6 @@ int main(int argc, char **argv) {
                             }
                         } else {
                             // More work to be done
-                            cout << "There is more work to do " << pRank << endl;
                             int response = 0;
                             processorQueue.push(pRank);
                             MPI_Ssend(&response, 1, MPI_INT, pRank, 2, MPI_COMM_WORLD);
@@ -658,6 +664,7 @@ int main(int argc, char **argv) {
             int isTerminate = 1;
             MPI_Ssend(&isTerminate, 1, MPI_INT, pRank, 0, MPI_COMM_WORLD);
         }
+        printf("Time: %ld us\n", (uint64_t) (GetTimeStamp() - start));
     }else {
         int processing = 1;
         while(processing == 1) {
@@ -671,7 +678,6 @@ int main(int argc, char **argv) {
             MPI_Recv(&isTerminate, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             if(isTerminate == 0) {
                 MPI_Recv(fileName, 100, MPI_CHAR, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                cout << rank << " received " << fileName << endl;
                 MPI_Recv(param, 5, MPI_INT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             } else {
                 // Termination called no more jobs available
@@ -684,8 +690,6 @@ int main(int argc, char **argv) {
             int yOffset = param[2];
             int fileType = param[3]; // 0 for full image, 1 for partial image
             int messageTag = param[4];
-
-            cout << height << endl;
 
             std::string fileNameStr = std::string(fileName);
             processImage(fileNameStr, yOffset, width, height, fileType, messageTag);
@@ -700,7 +704,6 @@ int main(int argc, char **argv) {
                 processing = 0;
             }
         }
-        cout << "Processor at " << rank << " ended" << endl;
     }
     MPI_Finalize();
 }
