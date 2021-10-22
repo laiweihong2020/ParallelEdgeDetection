@@ -5,9 +5,10 @@
 #include <cstring>
 #include <sstream>
 #include <cmath>
+#include <sys/time.h>
 
-# define WIDTH          5000
-# define HEIGHT         5000
+# define WIDTH          512
+# define HEIGHT         512
 # define KERNEL_SIZE    5
 # define HIGH_THRESHOLD 0.2
 # define LOW_THRESHOLD  0.05
@@ -28,6 +29,12 @@ double **new2d (int width, int height) {
         dp[i] = dp[i-1] + height;
     }
     return dp;
+}
+
+uint64_t GetTimeStamp() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
 }
 
 void showMatrix(double **mat, int w, int h) {
@@ -187,22 +194,22 @@ int nonMaxSuppression(double **G, double **theta, double **result) {
             int r[2] = {};
 
             // Handle cases for angles
-            if((0 <= angle < 22.5) || 157.5 <= angle <= 180) {
+            if((angle >= 0 && angle < 22.5) || (angle >= 157.5 && angle <= 180)){
                 q[0] = x;
                 q[1] = y+1;
                 r[0] = x;
                 r[1] = y-1;
-            } else if(22.5 <= angle < 67.5) {
+            } else if((angle >= 22.5 && angle < 67.5)){
                 q[0] = x+1;
                 q[1] = y-1;
                 r[0] = x-1;
                 r[1] = y+1;
-            } else if(67.5 <= angle < 112.5) {
+            } else if(angle >= 67.5 && angle < 112.5){
                 q[0] = x+1;
                 q[1] = y;
                 r[0] = x-1;
                 r[1] = y;
-            } else if(112.5 <= angle < 157.5) {
+            } else if(angle >= 112.5 && angle > 157.5){
                 q[0] = x-1;
                 q[1] = y-1;
                 r[0] = x+1;
@@ -262,6 +269,7 @@ void doubleThresholding(double **im, int max) {
 // Edge tracking
 // Communication between parallel components
 void hysteresis(double **im) {
+    uint64_t start = GetTimeStamp();
     for(int x = 0; x < WIDTH; ++x) {
         for(int y = 0; y < HEIGHT; ++y) {
             // See if the weak component is connected to a strong component
@@ -282,6 +290,7 @@ void hysteresis(double **im) {
             }
         }
     }
+    printf("Time: %ld us\n", (uint64_t) (GetTimeStamp() - start));
 }
 
 void writeToFile(string filePath, double **mat) {
@@ -307,7 +316,7 @@ int main(int argc, char **argv) {
     size *= HEIGHT;
     std::memset(imageMat[0], 0, size);
 
-    ifstream infile("image_matrices/lena.txt");
+    ifstream infile("image_matrices/66.txt");
     string line;
 
     int i = 0;

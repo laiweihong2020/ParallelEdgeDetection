@@ -6,10 +6,11 @@ def main():
     # # Convert the grayscale image into an numpy array to be processed in C++
     # I = np.asarray(im, dtype=int)
     # np.savetxt('../image_matrices/lena512.txt', I, fmt='%d')
-    I = np.loadtxt('../image_matrices/results/lena.txt')
+    I = np.loadtxt('../image_matrices/final.txt')
     im = Image.fromarray(np.uint8(I))
-    d = im.resize((512, 512))
-    d.show()
+    im.show()
+    # d = im.resize((512, 512), resample=Image.BOX)
+    # d.show()
 
 if __name__ == '__main__':
     main()
