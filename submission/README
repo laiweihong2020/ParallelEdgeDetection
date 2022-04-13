@@ -1,0 +1,15 @@
+When running the program, make sure that the file has the following structure
+submission
+ |
+ |-image_matrics
+  |-results
+   |-big
+ |bigWorkList.txt
+ |smallWordList.txt
+ |par_canny.cpp
+
+I have attached the image batch that I have used for some of my experiments. Just run it using the same slurm file that I have provided.
+
+Note: I haven't had the time to sanitise the file addresses, so make sure that file structure above is followed.
+
+If you want to add you own image, I have added imagePreprocessing.py to generate the txt images required by the program.
